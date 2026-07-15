@@ -61,6 +61,33 @@
       resetPlayer();
     }
 
+    function spawnObstacle() {
+      const roadLeft = canvas.width * 0.1;
+      const roadRight = canvas.width * 0.9;
+      const roadWidth = roadRight - roadLeft;
+      const laneWidth = roadWidth / LANE_COUNT;
+
+      const lane = Math.floor(Math.random() * LANE_COUNT);
+      const x = roadLeft + lane * laneWidth + (laneWidth - CAR_WIDTH) / 2;
+      const speed = BASE_SPEED + Math.floor(score / 200);
+
+      obstacles.push({
+        x, y: -CAR_HEIGHT,
+        w: CAR_WIDTH, h: CAR_HEIGHT,
+        speed: Math.min(speed, MAX_SPEED),
+        color: Math.random() > 0.5 ? '#e64a4a' : '#e68a2e'
+      });
+    }
+
+    function updateObstacles() {
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].y += obstacles[i].speed;
+        if (obstacles[i].y > canvas.height) {
+          obstacles.splice(i, 1);
+        }
+      }
+    }
+
     function drawCar(ctx, x, y, w, h, bodyColor) {
       ctx.fillStyle = bodyColor;
       ctx.beginPath();
@@ -107,10 +134,16 @@
 
     function update() {
       updatePlayer();
+      frame++;
+      if (frame % Math.max(20, SPAWN_INTERVAL - Math.floor(score / 100)) === 0) {
+        spawnObstacle();
+      }
+      updateObstacles();
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      obstacles.forEach(o => drawCar(ctx, o.x, o.y, o.w, o.h, o.color));
       drawCar(ctx, player.x, player.y, player.w, player.h, '#4488ff');
     }
 
