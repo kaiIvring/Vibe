@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Racing Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #222; }
+    canvas { display: block; }
+    #score {
+      position: fixed; top: 16px; right: 20px;
+      color: #fff; font: bold 24px/1 monospace;
+      z-index: 10; user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="score">0</div>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const LANE_COUNT = 3;
+    const CAR_WIDTH = 50;
+    const CAR_HEIGHT = 90;
+    const BASE_SPEED = 3;
+    const MAX_SPEED = 10;
+    const SPAWN_INTERVAL = 40;
+
+    let state = 'playing';
+    let score = 0;
+    let frame = 0;
+    let obstacles = [];
+
+    function update() {
+    }
+
+    function draw() {
+    }
+
+    function gameLoop() {
+      if (state === 'playing') {
+        update();
+      }
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
+  </script>
+</body>
+</html>
