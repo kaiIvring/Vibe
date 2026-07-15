@@ -22,6 +22,17 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
+    if (!ctx.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        return this;
+      };
+    }
+
     function resize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -61,14 +72,20 @@
       resetPlayer();
     }
 
+    function getRoadBounds() {
+      return {
+        left: canvas.width * 0.1,
+        right: canvas.width * 0.9,
+        width: canvas.width * 0.8
+      };
+    }
+
     function spawnObstacle() {
-      const roadLeft = canvas.width * 0.1;
-      const roadRight = canvas.width * 0.9;
-      const roadWidth = roadRight - roadLeft;
-      const laneWidth = roadWidth / LANE_COUNT;
+      const road = getRoadBounds();
+      const laneWidth = road.width / LANE_COUNT;
 
       const lane = Math.floor(Math.random() * LANE_COUNT);
-      const x = roadLeft + lane * laneWidth + (laneWidth - CAR_WIDTH) / 2;
+      const x = road.left + lane * laneWidth + (laneWidth - CAR_WIDTH) / 2;
       const speed = BASE_SPEED + Math.floor(score / 200);
 
       obstacles.push({
@@ -119,9 +136,8 @@
     function updatePlayer() {
       if (keys['ArrowLeft']) player.x -= player.speed;
       if (keys['ArrowRight']) player.x += player.speed;
-      const roadLeft = canvas.width * 0.1;
-      const roadRight = canvas.width * 0.9;
-      player.x = Math.max(roadLeft, Math.min(roadRight - player.w, player.x));
+      const road = getRoadBounds();
+      player.x = Math.max(road.left, Math.min(road.right - player.w, player.x));
     }
 
     document.addEventListener('keydown', e => {
@@ -150,14 +166,13 @@
 
     function update() {
       if (state !== 'playing') return;
-      score++;
-      document.getElementById('score').textContent = Math.floor(score / 60) + 's';
       updatePlayer();
       checkCollisions();
+      if (state === 'gameover') return;
+      score++;
+      document.getElementById('score').textContent = Math.floor(score / 60) + 's';
       frame++;
-      if (frame % Math.max(20, SPAWN_INTERVAL - Math.floor(score / 100)) === 0) {
-        spawnObstacle();
-      }
+      if (frame % Math.max(20, SPAWN_INTERVAL - Math.floor(score / 100)) === 0) spawnObstacle();
       updateObstacles();
     }
 
@@ -168,21 +183,19 @@
       ctx.fillStyle = '#333';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const roadLeft = canvas.width * 0.1;
-      const roadRight = canvas.width * 0.9;
-      const roadWidth = roadRight - roadLeft;
+      const road = getRoadBounds();
 
       // pavement
       ctx.fillStyle = '#555';
-      ctx.fillRect(roadLeft, 0, roadWidth, canvas.height);
+      ctx.fillRect(road.left, 0, road.width, canvas.height);
 
       // lane markings
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 4;
       ctx.setLineDash([20, 20]);
-      const laneWidth = roadWidth / LANE_COUNT;
+      const laneWidth = road.width / LANE_COUNT;
       for (let i = 1; i < LANE_COUNT; i++) {
-        const lx = roadLeft + i * laneWidth;
+        const lx = road.left + i * laneWidth;
         ctx.beginPath();
         ctx.moveTo(lx, 0);
         ctx.lineTo(lx, canvas.height);
@@ -194,8 +207,8 @@
       ctx.strokeStyle = '#ffcc00';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(roadLeft, 0); ctx.lineTo(roadLeft, canvas.height);
-      ctx.moveTo(roadRight, 0); ctx.lineTo(roadRight, canvas.height);
+      ctx.moveTo(road.left, 0); ctx.lineTo(road.left, canvas.height);
+      ctx.moveTo(road.right, 0); ctx.lineTo(road.right, canvas.height);
       ctx.stroke();
 
       obstacles.forEach(o => drawCar(ctx, o.x, o.y, o.w, o.h, o.color));
