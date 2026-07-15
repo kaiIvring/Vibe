@@ -36,6 +36,39 @@
       font-family: 'Courier New', monospace;
       user-select: none;
     }
+    #effects {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+      font-family: 'Courier New', monospace;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .effect-tag {
+      font-size: 12px;
+      font-weight: bold;
+      padding: 3px 8px;
+      border-radius: 3px;
+      letter-spacing: 1px;
+      animation: effectPulse 0.8s ease-in-out infinite;
+    }
+    .effect-good {
+      background: rgba(0, 255, 200, 0.2);
+      color: #00ffc8;
+      border: 1px solid #00ffc866;
+    }
+    .effect-bad {
+      background: rgba(255, 34, 85, 0.2);
+      color: #ff4477;
+      border: 1px solid #ff447766;
+    }
+    @keyframes effectPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
     #overlay {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -109,6 +142,7 @@
 <div id="wrap">
   <canvas id="game"></canvas>
   <div id="score">0</div>
+  <div id="effects"></div>
   <div id="overlay" class="start">
     <div class="start-title">NIGHT RACER</div>
     <div class="start-sub">PRESS ANY KEY TO START</div>
@@ -155,6 +189,29 @@
   let lastTime = 0;
   let stars = [];
 
+  // Power-up system
+  let powerups = [];
+  let activeEffects = {};
+  let powerupSpawnTimer = 0;
+  const POWERUP_SPAWN_INTERVAL = 750; // frames between powerup spawns (~12 seconds)
+  const POWERUP_SIZE = 28;
+
+  // Power-up types
+  const POWERUP_TYPES = [
+    // Positive
+    { type: 'shield', label: 'SHIELD', good: true, duration: 360, color: '#4488ff', icon: 'S' },
+    { type: 'slow', label: 'SLOW-MO', good: true, duration: 300, color: '#88ff44', icon: 'T' },
+    { type: 'score', label: '+30 PTS', good: true, duration: 0, color: '#ffcc00', icon: '$' },
+    { type: 'shrink', label: 'SHRINK', good: true, duration: 360, color: '#ff88ff', icon: 'V' },
+    // Negative
+    { type: 'confuse', label: 'CONFUSE', good: false, duration: 300, color: '#ff44aa', icon: '?' },
+    { type: 'fog', label: 'FOG', good: false, duration: 300, color: '#888888', icon: 'F' },
+    { type: 'turbo', label: 'TURBO', good: false, duration: 300, color: '#ff6600', icon: '>' },
+    { type: 'ghost', label: 'GHOST', good: false, duration: 300, color: '#aaaacc', icon: 'G' },
+  ];
+
+  const effectsEl = document.getElementById('effects');
+
   // Generate stars once
   function generateStars() {
     stars = [];
@@ -173,12 +230,16 @@
   function reset() {
     player = { lane: 2, x: LANE_W * 2 + LANE_W / 2, y: H - CAR_H - 30, targetX: LANE_W * 2 + LANE_W / 2 };
     obstacles = [];
+    powerups = [];
+    activeEffects = {};
+    powerupSpawnTimer = 0;
     score = 0;
     speed = 3.5;
     spawnTimer = 0;
     spawnInterval = 130;
     roadOffset = 0;
     scoreEl.textContent = '0';
+    effectsEl.innerHTML = '';
   }
 
   // --- Input ---
@@ -257,34 +318,24 @@
     ctx.setLineDash([]);
   }
 
-  function drawCar(x, y, color, accent, isPlayer) {
-    const cx = x;
-    const cy = y;
-    const hw = CAR_W / 2;
-    const hh = CAR_H / 2;
+  function drawObstacleCar(x, y, color, accent) {
+    const cx = x, cy = y;
+    const hw = CAR_W / 2, hh = CAR_H / 2;
 
-    // Shadow / glow
-    if (isPlayer) {
-      ctx.shadowColor = '#00ffc8';
-      ctx.shadowBlur = 18;
-    } else {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 10;
-    }
-
-    // Body
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
     ctx.fillStyle = color;
     roundRect(cx - hw, cy - hh, CAR_W, CAR_H, 6);
     ctx.fill();
     ctx.shadowBlur = 0;
 
     // Windshield
-    ctx.fillStyle = isPlayer ? '#00332a' : '#1a1a2e';
+    ctx.fillStyle = '#1a1a2e';
     roundRect(cx - hw + 6, cy - hh + 10, CAR_W - 12, 18, 3);
     ctx.fill();
 
     // Rear window
-    ctx.fillStyle = isPlayer ? '#00332a' : '#1a1a2e';
+    ctx.fillStyle = '#1a1a2e';
     roundRect(cx - hw + 8, cy + hh - 26, CAR_W - 16, 14, 3);
     ctx.fill();
 
@@ -292,31 +343,209 @@
     ctx.fillStyle = accent;
     ctx.fillRect(cx - 3, cy - hh + 4, 6, CAR_H - 8);
 
-    // Headlights / taillights
-    if (isPlayer) {
-      // Taillights (red)
-      ctx.fillStyle = '#ff3344';
-      ctx.shadowColor = '#ff3344';
-      ctx.shadowBlur = 8;
-      ctx.fillRect(cx - hw + 2, cy + hh - 6, 8, 4);
-      ctx.fillRect(cx + hw - 10, cy + hh - 6, 8, 4);
-      ctx.shadowBlur = 0;
-      // Headlights
-      ctx.fillStyle = '#ffffcc';
-      ctx.shadowColor = '#ffffcc';
-      ctx.shadowBlur = 12;
-      ctx.fillRect(cx - hw + 3, cy - hh + 2, 7, 4);
-      ctx.fillRect(cx + hw - 10, cy - hh + 2, 7, 4);
-      ctx.shadowBlur = 0;
-    } else {
-      // Headlights (facing player = taillights at top)
-      ctx.fillStyle = '#ff3344';
-      ctx.shadowColor = '#ff3344';
-      ctx.shadowBlur = 8;
-      ctx.fillRect(cx - hw + 3, cy - hh + 2, 7, 4);
-      ctx.fillRect(cx + hw - 10, cy - hh + 2, 7, 4);
+    // Taillights at top (facing player)
+    ctx.fillStyle = '#ff3344';
+    ctx.shadowColor = '#ff3344';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(cx - hw + 3, cy - hh + 2, 7, 4);
+    ctx.fillRect(cx + hw - 10, cy - hh + 2, 7, 4);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawPlayerCar(x, y) {
+    const cx = x, cy = y;
+    const hw = CAR_W / 2, hh = CAR_H / 2;
+    const hasShield = activeEffects.shield;
+    const isGhost = activeEffects.ghost;
+    const isShrink = activeEffects.shrink;
+
+    const scale = isShrink ? 0.7 : 1;
+    const alpha = isGhost ? 0.35 : 1;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.scale(scale, scale);
+
+    const pHW = hw, pHH = hh;
+
+    // Neon underglow
+    ctx.shadowColor = hasShield ? '#4488ff' : '#00ffc8';
+    ctx.shadowBlur = hasShield ? 30 : 20;
+    ctx.fillStyle = hasShield ? '#4488ff22' : '#00ffc811';
+    ctx.fillRect(-pHW - 4, -pHH + 5, pHW * 2 + 8, pHH * 2 - 5);
+    ctx.shadowBlur = 0;
+
+    // Main body - sleek tapered shape
+    ctx.fillStyle = '#0d4a40';
+    ctx.beginPath();
+    ctx.moveTo(-pHW + 4, pHH);                          // rear left
+    ctx.lineTo(-pHW, pHH - 15);                          // left body
+    ctx.lineTo(-pHW + 2, -pHH + 20);                     // left front taper
+    ctx.lineTo(-pHW + 8, -pHH + 5);                      // left nose
+    ctx.lineTo(0, -pHH);                                  // nose tip
+    ctx.lineTo(pHW - 8, -pHH + 5);                       // right nose
+    ctx.lineTo(pHW - 2, -pHH + 20);                      // right front taper
+    ctx.lineTo(pHW, pHH - 15);                           // right body
+    ctx.lineTo(pHW - 4, pHH);                             // rear right
+    ctx.closePath();
+    ctx.fill();
+
+    // Body highlight gradient
+    const bodyGrad = ctx.createLinearGradient(-pHW, 0, pHW, 0);
+    bodyGrad.addColorStop(0, '#0a6e5c');
+    bodyGrad.addColorStop(0.5, '#0fa88a');
+    bodyGrad.addColorStop(1, '#0a6e5c');
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.moveTo(-pHW + 6, pHH - 5);
+    ctx.lineTo(-pHW + 2, -pHH + 22);
+    ctx.lineTo(-pHW + 10, -pHH + 8);
+    ctx.lineTo(0, -pHH + 3);
+    ctx.lineTo(pHW - 10, -pHH + 8);
+    ctx.lineTo(pHW - 2, -pHH + 22);
+    ctx.lineTo(pHW - 6, pHH - 5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Racing stripes (V-shape on hood)
+    ctx.strokeStyle = '#00ffc8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-8, -pHH + 10);
+    ctx.lineTo(0, -pHH + 28);
+    ctx.lineTo(8, -pHH + 10);
+    ctx.stroke();
+
+    // Side stripes
+    ctx.strokeStyle = '#00ffc855';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-pHW + 5, -pHH + 30);
+    ctx.lineTo(-pHW + 5, pHH - 20);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pHW - 5, -pHH + 30);
+    ctx.lineTo(pHW - 5, pHH - 20);
+    ctx.stroke();
+
+    // Cockpit / windshield - dark teardrop
+    ctx.fillStyle = '#002a22';
+    ctx.beginPath();
+    ctx.moveTo(-10, -pHH + 25);
+    ctx.lineTo(-12, -pHH + 42);
+    ctx.lineTo(12, -pHH + 42);
+    ctx.lineTo(10, -pHH + 25);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cockpit border glow
+    ctx.strokeStyle = '#00ffc833';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Side air intakes
+    ctx.fillStyle = '#063330';
+    ctx.fillRect(-pHW + 1, -pHH + 45, 6, 12);
+    ctx.fillRect(pHW - 7, -pHH + 45, 6, 12);
+
+    // Rear spoiler
+    ctx.fillStyle = '#084';
+    ctx.fillRect(-pHW + 2, pHH - 8, pHW * 2 - 4, 5);
+    ctx.fillStyle = '#00ffc8';
+    ctx.fillRect(-pHW + 4, pHH - 7, pHW * 2 - 8, 1);
+
+    // Headlights (front - bright white-cyan)
+    ctx.fillStyle = '#eeffff';
+    ctx.shadowColor = '#00ffc8';
+    ctx.shadowBlur = 14;
+    ctx.fillRect(-pHW + 8, -pHH + 3, 6, 3);
+    ctx.fillRect(pHW - 14, -pHH + 3, 6, 3);
+    ctx.shadowBlur = 0;
+
+    // Taillights (rear - red glow)
+    ctx.fillStyle = '#ff2244';
+    ctx.shadowColor = '#ff2244';
+    ctx.shadowBlur = 10;
+    ctx.fillRect(-pHW + 6, pHH - 4, 10, 3);
+    ctx.fillRect(pHW - 16, pHH - 4, 10, 3);
+    ctx.shadowBlur = 0;
+
+    // Exhaust pipes
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-8, pHH - 2, 4, 3);
+    ctx.fillRect(4, pHH - 2, 4, 3);
+
+    // Shield visual
+    if (hasShield) {
+      ctx.strokeStyle = '#4488ff';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#4488ff';
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, pHW + 6, pHH + 6, 0, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.shadowBlur = 0;
     }
+
+    ctx.restore();
+  }
+
+  function drawPowerup(pu) {
+    const x = pu.x, y = pu.y;
+    const s = POWERUP_SIZE;
+    const t = performance.now() * 0.003;
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Floating animation
+    const floatY = Math.sin(t + pu.seed) * 3;
+    ctx.translate(0, floatY);
+
+    // Glow
+    ctx.shadowColor = pu.color;
+    ctx.shadowBlur = 12;
+
+    if (pu.good) {
+      // Diamond shape for good items
+      ctx.fillStyle = pu.color;
+      ctx.beginPath();
+      ctx.moveTo(0, -s / 2);
+      ctx.lineTo(s / 2, 0);
+      ctx.lineTo(0, s / 2);
+      ctx.lineTo(-s / 2, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      // Spiky shape for bad items
+      ctx.fillStyle = pu.color;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+        const r = i % 2 === 0 ? s / 2 : s / 3.5;
+        ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+
+    // Icon letter
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px Courier New';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pu.icon, 0, 1);
+
+    ctx.restore();
   }
 
   function roundRect(x, y, w, h, r) {
@@ -341,6 +570,59 @@
     { body: '#8833cc', accent: '#bb77ff88' },
     { body: '#cc5500', accent: '#ff884488' },
   ];
+
+  function spawnPowerup() {
+    const lane = Math.floor(Math.random() * LANE_COUNT);
+    const type = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+    powerups.push({
+      lane: lane,
+      x: LANE_W * lane + LANE_W / 2,
+      y: -POWERUP_SIZE,
+      type: type.type,
+      label: type.label,
+      good: type.good,
+      duration: type.duration,
+      color: type.color,
+      icon: type.icon,
+      speed: speed * 0.7,
+      seed: Math.random() * Math.PI * 2
+    });
+  }
+
+  function applyEffect(pu) {
+    if (pu.duration === 0) {
+      // Instant effect
+      if (pu.type === 'score') {
+        score += 30;
+      }
+      return;
+    }
+    activeEffects[pu.type] = pu.duration;
+  }
+
+  function updateEffectsUI() {
+    let html = '';
+    for (const key in activeEffects) {
+      if (activeEffects[key] <= 0) continue;
+      const info = POWERUP_TYPES.find(t => t.type === key);
+      if (!info) continue;
+      const secs = Math.ceil(activeEffects[key] / 60);
+      const cls = info.good ? 'effect-good' : 'effect-bad';
+      html += `<div class="effect-tag ${cls}">${info.label} ${secs}s</div>`;
+    }
+    effectsEl.innerHTML = html;
+  }
+
+  function tickEffects(dt) {
+    for (const key in activeEffects) {
+      if (activeEffects[key] > 0) {
+        activeEffects[key] -= dt;
+        if (activeEffects[key] <= 0) {
+          delete activeEffects[key];
+        }
+      }
+    }
+  }
 
   function spawnObstacle() {
     // Find lanes that are clear near the top
@@ -393,19 +675,21 @@
   }
 
   function update(dt) {
-    // Player movement
+    const isConfused = !!activeEffects.confuse;
     const moveSpeed = 5 * dt;
+
+    // Player movement (reversed if confused)
     if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-      player.x -= moveSpeed;
+      player.x += isConfused ? moveSpeed : -moveSpeed;
     }
     if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-      player.x += moveSpeed;
+      player.x += isConfused ? -moveSpeed : moveSpeed;
     }
     if (keys['ArrowUp'] || keys['w'] || keys['W']) {
-      player.y -= moveSpeed;
+      player.y += isConfused ? moveSpeed : -moveSpeed;
     }
     if (keys['ArrowDown'] || keys['s'] || keys['S']) {
-      player.y += moveSpeed;
+      player.y += isConfused ? -moveSpeed : moveSpeed;
     }
 
     // Clamp player within road
@@ -416,6 +700,15 @@
     if (player.y < halfH + 10) player.y = halfH + 10;
     if (player.y > H - halfH - 10) player.y = H - halfH - 10;
 
+    // Tick active effects
+    tickEffects(dt);
+    updateEffectsUI();
+
+    // Effective speed with turbo/slow-mo
+    let effectiveSpeed = speed;
+    if (activeEffects.turbo) effectiveSpeed *= 1.6;
+    if (activeEffects.slow) effectiveSpeed *= 0.5;
+
     // Spawn obstacles
     spawnTimer += dt;
     if (spawnTimer >= spawnInterval / 16.67) {
@@ -423,17 +716,47 @@
       spawnObstacle();
     }
 
+    // Spawn powerups (infrequent)
+    powerupSpawnTimer += dt;
+    if (powerupSpawnTimer >= POWERUP_SPAWN_INTERVAL / 16.67) {
+      powerupSpawnTimer = 0;
+      spawnPowerup();
+    }
+
     // Move obstacles
     for (let i = obstacles.length - 1; i >= 0; i--) {
-      obstacles[i].y += obstacles[i].speed * dt;
+      obstacles[i].y += obstacles[i].speed * (effectiveSpeed / speed) * dt;
       if (obstacles[i].y > H + CAR_H) {
         obstacles.splice(i, 1);
         continue;
       }
       // Collision check
       if (collides(player, obstacles[i])) {
+        if (activeEffects.shield) {
+          // Shield absorbs hit, remove obstacle
+          obstacles.splice(i, 1);
+          continue;
+        }
         gameOver();
         return;
+      }
+    }
+
+    // Move powerups
+    const pSize = POWERUP_SIZE;
+    for (let i = powerups.length - 1; i >= 0; i--) {
+      powerups[i].y += powerups[i].speed * dt;
+      if (powerups[i].y > H + pSize) {
+        powerups.splice(i, 1);
+        continue;
+      }
+      // Pickup collision (generous hitbox)
+      const pu = powerups[i];
+      const dx = Math.abs(player.x - pu.x);
+      const dy = Math.abs(player.y - pu.y);
+      if (dx < (CAR_W / 2 + pSize / 2) && dy < (CAR_H / 2 + pSize / 2)) {
+        applyEffect(pu);
+        powerups.splice(i, 1);
       }
     }
 
@@ -452,11 +775,16 @@
 
     // Draw obstacles
     for (const o of obstacles) {
-      drawCar(o.x, o.y, o.color, o.accent, false);
+      drawObstacleCar(o.x, o.y, o.color, o.accent);
+    }
+
+    // Draw powerups
+    for (const pu of powerups) {
+      drawPowerup(pu);
     }
 
     // Draw player
-    drawCar(player.x, player.y, '#0a6e5c', '#00ffc866', true);
+    drawPlayerCar(player.x, player.y);
 
     // Speed lines (subtle)
     if (speed > 6) {
@@ -471,6 +799,18 @@
         ctx.lineTo(lx, ly + 15 + speed * 2);
         ctx.stroke();
       }
+    }
+
+    // Fog effect
+    if (activeEffects.fog) {
+      const fogGrad = ctx.createRadialGradient(
+        player.x, player.y, 60,
+        player.x, player.y, 200
+      );
+      fogGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      fogGrad.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+      ctx.fillStyle = fogGrad;
+      ctx.fillRect(0, 0, W, H);
     }
   }
 
@@ -488,8 +828,7 @@
   // --- Initial draw for start screen ---
   function drawStartScreen() {
     drawRoad();
-    // Draw a demo car
-    drawCar(W / 2, H - CAR_H - 30, '#0a6e5c', '#00ffc866', true);
+    drawPlayerCar(W / 2, H - CAR_H - 30);
   }
   reset();
   drawStartScreen();
