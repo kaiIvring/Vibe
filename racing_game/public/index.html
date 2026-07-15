@@ -144,9 +144,9 @@
   window.addEventListener('resize', resizeCanvas);
 
   // --- Game state ---
-  const LANE_COUNT = 4;
+  const LANE_COUNT = 5;
   const LANE_W = W / LANE_COUNT;
-  const CAR_W = 44;
+  const CAR_W = 48;
   const CAR_H = 80;
 
   let state = 'start'; // start | playing | over
@@ -171,12 +171,12 @@
   generateStars();
 
   function reset() {
-    player = { lane: 1, x: LANE_W * 1 + LANE_W / 2, y: H - CAR_H - 30, targetX: LANE_W * 1 + LANE_W / 2 };
+    player = { lane: 2, x: LANE_W * 2 + LANE_W / 2, y: H - CAR_H - 30, targetX: LANE_W * 2 + LANE_W / 2 };
     obstacles = [];
     score = 0;
-    speed = 4;
+    speed = 3.5;
     spawnTimer = 0;
-    spawnInterval = 70;
+    spawnInterval = 130;
     roadOffset = 0;
     scoreEl.textContent = '0';
   }
@@ -343,7 +343,19 @@
   ];
 
   function spawnObstacle() {
-    const lane = Math.floor(Math.random() * LANE_COUNT);
+    // Find lanes that are clear near the top
+    const blockedLanes = new Set();
+    for (const o of obstacles) {
+      if (o.y < CAR_H * 2.5) blockedLanes.add(o.lane);
+    }
+    const available = [];
+    for (let i = 0; i < LANE_COUNT; i++) {
+      if (!blockedLanes.has(i)) available.push(i);
+    }
+    // Always leave at least 2 lanes clear at the top
+    if (available.length <= 2) return;
+
+    const lane = available[Math.floor(Math.random() * available.length)];
     const colorSet = OBS_COLORS[Math.floor(Math.random() * OBS_COLORS.length)];
     obstacles.push({
       lane: lane,
@@ -351,7 +363,7 @@
       y: -CAR_H,
       color: colorSet.body,
       accent: colorSet.accent,
-      speed: speed * (0.85 + Math.random() * 0.3)
+      speed: speed * (0.8 + Math.random() * 0.25)
     });
   }
 
@@ -389,21 +401,26 @@
     if (keys['ArrowRight'] || keys['d'] || keys['D']) {
       player.x += moveSpeed;
     }
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+      player.y -= moveSpeed;
+    }
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+      player.y += moveSpeed;
+    }
 
     // Clamp player within road
     const halfW = CAR_W / 2;
+    const halfH = CAR_H / 2;
     if (player.x < halfW + 6) player.x = halfW + 6;
     if (player.x > W - halfW - 6) player.x = W - halfW - 6;
+    if (player.y < halfH + 10) player.y = halfH + 10;
+    if (player.y > H - halfH - 10) player.y = H - halfH - 10;
 
     // Spawn obstacles
     spawnTimer += dt;
     if (spawnTimer >= spawnInterval / 16.67) {
       spawnTimer = 0;
       spawnObstacle();
-      // Occasionally spawn two at once
-      if (Math.random() < 0.3 && speed > 6) {
-        spawnObstacle();
-      }
     }
 
     // Move obstacles
@@ -425,13 +442,9 @@
     const s = Math.floor(score);
     scoreEl.textContent = s;
 
-    if (s > 0 && s % 50 === 0) {
-      speed = 4 + s * 0.02;
-      if (spawnInterval > 25) spawnInterval = 70 - s * 0.15;
-    }
-    speed = 4 + Math.floor(score) * 0.015;
-    if (speed > 14) speed = 14;
-    spawnInterval = Math.max(22, 70 - Math.floor(score) * 0.12);
+    speed = 3.5 + s * 0.008;
+    if (speed > 10) speed = 10;
+    spawnInterval = Math.max(55, 130 - s * 0.25);
   }
 
   function draw() {
