@@ -149,6 +149,9 @@
     }
 
     function update() {
+      if (state !== 'playing') return;
+      score++;
+      document.getElementById('score').textContent = Math.floor(score / 60) + 's';
       updatePlayer();
       checkCollisions();
       frame++;
@@ -160,6 +163,41 @@
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // road background
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const roadLeft = canvas.width * 0.1;
+      const roadRight = canvas.width * 0.9;
+      const roadWidth = roadRight - roadLeft;
+
+      // pavement
+      ctx.fillStyle = '#555';
+      ctx.fillRect(roadLeft, 0, roadWidth, canvas.height);
+
+      // lane markings
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([20, 20]);
+      const laneWidth = roadWidth / LANE_COUNT;
+      for (let i = 1; i < LANE_COUNT; i++) {
+        const lx = roadLeft + i * laneWidth;
+        ctx.beginPath();
+        ctx.moveTo(lx, 0);
+        ctx.lineTo(lx, canvas.height);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // road edges
+      ctx.strokeStyle = '#ffcc00';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(roadLeft, 0); ctx.lineTo(roadLeft, canvas.height);
+      ctx.moveTo(roadRight, 0); ctx.lineTo(roadRight, canvas.height);
+      ctx.stroke();
+
       obstacles.forEach(o => drawCar(ctx, o.x, o.y, o.w, o.h, o.color));
       drawCar(ctx, player.x, player.y, player.w, player.h, '#4488ff');
 
