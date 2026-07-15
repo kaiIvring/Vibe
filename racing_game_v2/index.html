@@ -21,6 +21,7 @@
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
 
     if (!ctx.roundRect) {
       CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
@@ -141,6 +142,9 @@
     }
 
     document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+      }
       keys[e.key] = true;
       if (e.key === 'r' || e.key === 'R') {
         if (state === 'gameover') resetGame();
@@ -170,7 +174,7 @@
       checkCollisions();
       if (state === 'gameover') return;
       score++;
-      document.getElementById('score').textContent = Math.floor(score / 60) + 's';
+      scoreEl.textContent = Math.floor(score / 60) + 's';
       frame++;
       if (frame % Math.max(20, SPAWN_INTERVAL - Math.floor(score / 100)) === 0) spawnObstacle();
       updateObstacles();
