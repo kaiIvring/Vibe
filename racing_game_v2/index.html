@@ -41,10 +41,77 @@
     let frame = 0;
     let obstacles = [];
 
+    const player = {
+      x: 0, y: 0, w: CAR_WIDTH, h: CAR_HEIGHT,
+      speed: 5
+    };
+    const keys = {};
+
+    function resetPlayer() {
+      player.x = (canvas.width - player.w) / 2;
+      player.y = canvas.height - player.h - 40;
+    }
+    resetPlayer();
+
+    function resetGame() {
+      state = 'playing';
+      score = 0;
+      frame = 0;
+      obstacles = [];
+      resetPlayer();
+    }
+
+    function drawCar(ctx, x, y, w, h, bodyColor) {
+      ctx.fillStyle = bodyColor;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 8);
+      ctx.fill();
+      ctx.fillStyle = '#aaddff';
+      ctx.beginPath();
+      ctx.roundRect(x + 8, y + 12, w - 16, 20, 4);
+      ctx.fill();
+      ctx.fillStyle = '#88bbdd';
+      ctx.beginPath();
+      ctx.roundRect(x + 10, y + h - 28, w - 20, 14, 3);
+      ctx.fill();
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.ellipse(x + 6, y + 12, 5, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + w - 6, y + 12, 5, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + 6, y + h - 12, 5, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + w - 6, y + h - 12, 5, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function updatePlayer() {
+      if (keys['ArrowLeft']) player.x -= player.speed;
+      if (keys['ArrowRight']) player.x += player.speed;
+      const roadLeft = canvas.width * 0.1;
+      const roadRight = canvas.width * 0.9;
+      player.x = Math.max(roadLeft, Math.min(roadRight - player.w, player.x));
+    }
+
+    document.addEventListener('keydown', e => {
+      keys[e.key] = true;
+      if (e.key === 'r' || e.key === 'R') {
+        if (state === 'gameover') resetGame();
+      }
+    });
+    document.addEventListener('keyup', e => { keys[e.key] = false; });
+
     function update() {
+      updatePlayer();
     }
 
     function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawCar(ctx, player.x, player.y, player.w, player.h, '#4488ff');
     }
 
     function gameLoop() {
