@@ -81,27 +81,90 @@
     let gameMode = 'menu';
     let instances = [];
 
-    function showMenu() {
-      gameMode = 'menu';
-      instances = [];
-      hideAllScreens();
-      document.getElementById('menu').style.display = 'flex';
-    }
+    const Leaderboard = {
+      key: 'racing_game_leaderboard',
+
+      getAll() {
+        try {
+          const data = localStorage.getItem(this.key);
+          return data ? JSON.parse(data) : [];
+        } catch {
+          return [];
+        }
+      },
+
+      save(entry) {
+        let list = this.getAll();
+        list.push(entry);
+        list.sort((a, b) => b.score - a.score);
+        list = list.slice(0, 10);
+        try {
+          localStorage.setItem(this.key, JSON.stringify(list));
+        } catch {}
+        return list;
+      },
+
+      isHighScore(score) {
+        const list = this.getAll();
+        return list.length < 10 || score > list[list.length - 1].score;
+      },
+
+      clear() {
+        try {
+          localStorage.removeItem(this.key);
+        } catch {}
+      }
+    };
+
+    function showDualResult() {}
 
     function onGameOver(instance) {
-    }
-
-    function hideLeaderboard() {
-      document.getElementById('leaderboard').classList.remove('show');
+      if (gameMode === 'single') {
+        const score = Math.floor(instance.score / 60);
+        if (Leaderboard.isHighScore(score)) {
+          const name = prompt('New High Score! Enter your name (3 letters):', 'AAA');
+          if (name) {
+            Leaderboard.save({ name: name.slice(0, 3).toUpperCase(), score, date: new Date().toLocaleDateString() });
+          }
+        }
+      } else if (gameMode === 'dual') {
+        if (instances.every(i => i.isOver)) {
+          showDualResult();
+        }
+      }
     }
 
     function showLeaderboard() {
       hideAllScreens();
       document.getElementById('leaderboard').classList.add('show');
+      const list = Leaderboard.getAll();
+      const ol = document.getElementById('lbList');
+      ol.innerHTML = '';
+      if (list.length === 0) {
+        ol.innerHTML = '<li style="color:#666">暂无记录</li>';
+      } else {
+        list.forEach((entry, i) => {
+          const li = document.createElement('li');
+          li.textContent = `${entry.name} — ${entry.score}s (${entry.date || ''})`;
+          ol.appendChild(li);
+        });
+      }
     }
 
+    function hideLeaderboard() { showMenu(); }
+
     function clearLeaderboard() {
-      document.getElementById('lbList').innerHTML = '';
+      if (confirm('Clear all leaderboard data?')) {
+        Leaderboard.clear();
+        showLeaderboard();
+      }
+    }
+
+    function showMenu() {
+      gameMode = 'menu';
+      instances = [];
+      hideAllScreens();
+      document.getElementById('menu').style.display = 'flex';
     }
 
     function hideAllScreens() {
