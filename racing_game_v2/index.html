@@ -206,6 +206,10 @@
         const spawnRate = Math.max(20, 40 - Math.floor(this.score / 100));
         if (this.frame % spawnRate === 0) this.spawnObstacle();
 
+        if (this.frame > 120 && this.frame % 300 === 0 && Math.random() < 0.7) {
+          this.spawnPowerup();
+        }
+
         this.updateObstacles();
         this.updatePowerups();
       }
@@ -267,8 +271,97 @@
                a.normalY + a.h / 2 > b.normalY - b.h / 2;
       }
 
-      updatePowerups() {}
-      spawnPowerup() {}
+      spawnPowerup() {
+        const types = ['speed', 'shield', 'slow'];
+        const type = types[Math.floor(Math.random() * 3)];
+        this.powerups.push({
+          normalX: 0.1 + Math.random() * 0.8,
+          normalY: -1,
+          w: 0.06, h: 0.06,
+          speed: 0.008,
+          type: type
+        });
+      }
+
+      updatePowerups() {
+        for (let i = this.powerups.length - 1; i >= 0; i--) {
+          const p = this.powerups[i];
+          p.normalY += p.speed;
+          if (this.rectsOverlap(this.player, p)) {
+            this.applyPowerup(p.type);
+            this.powerups.splice(i, 1);
+            continue;
+          }
+          if (p.normalY > 1.2) {
+            this.powerups.splice(i, 1);
+          }
+        }
+      }
+
+      applyPowerup(type) {
+        switch (type) {
+          case 'speed':
+            this.player.speedBoost = 180;
+            break;
+          case 'shield':
+            this.player.shield = true;
+            break;
+          case 'slow':
+            this.player.slowTimer = 180;
+            break;
+        }
+      }
+      drawPowerup(p) {
+        const c = this.canvas;
+        const ctx = this.ctx;
+        const proj = projectTo3D(c, p.normalX, p.normalY);
+        const size = 10 * proj.scale;
+        const x = proj.x;
+        const y = proj.y;
+
+        if (y > c.height || y < 0) return;
+
+        const pulse = Math.sin(this.frame * 0.1) * 0.3 + 0.7;
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        switch (p.type) {
+          case 'speed':
+            ctx.fillStyle = `rgba(76, 255, 76, ${pulse})`;
+            ctx.beginPath();
+            ctx.moveTo(0, -size);
+            ctx.lineTo(size, 0);
+            ctx.lineTo(0, size);
+            ctx.lineTo(-size, 0);
+            ctx.closePath();
+            ctx.fill();
+            break;
+          case 'shield':
+            ctx.fillStyle = `rgba(76, 150, 255, ${pulse})`;
+            ctx.beginPath();
+            ctx.arc(0, 0, size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            break;
+          case 'slow':
+            ctx.fillStyle = `rgba(200, 100, 255, ${pulse})`;
+            for (let i = 0; i < 5; i++) {
+              const a = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+              const px = Math.cos(a) * size;
+              const py = Math.sin(a) * size;
+              i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            break;
+        }
+
+        ctx.restore();
+      }
+
       draw() {
         const ctx = this.ctx;
         const c = this.canvas;
@@ -325,6 +418,9 @@
         this.obstacles.sort((a, b) => a.normalY - b.normalY)
           .forEach(o => this.drawCar(this.ctx, o.normalX, o.normalY, o.w, o.h, o.color, 1));
 
+        // Draw powerups
+        this.powerups.forEach(p => this.drawPowerup(p));
+
         // Draw player
         this.drawCar(this.ctx, this.player.normalX, this.player.normalY, this.player.w, this.player.h, '#4488ff', 1);
 
@@ -380,6 +476,14 @@
           ctx.beginPath();
           ctx.ellipse(x + sw * dx, y + sh * dy, wheelW, wheelH, 0, 0, Math.PI * 2);
           ctx.fill();
+        }
+
+        if (this.player.shield) {
+          ctx.strokeStyle = 'rgba(76, 150, 255, 0.6)';
+          ctx.lineWidth = Math.max(1, 3 * p.scale);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y - sh / 2, sw * 0.7, 0, Math.PI * 2);
+          ctx.stroke();
         }
       }
 
