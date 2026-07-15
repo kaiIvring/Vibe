@@ -177,9 +177,98 @@
         this.powerups = [];
       }
 
-      reset() {}
+      reset() {
+        this.state = 'idle';
+        this.score = 0;
+        this.frame = 0;
+        this.obstacles = [];
+        this.powerups = [];
+        this.player.normalX = 0.5;
+        this.player.normalY = 0.85;
+        this.player.shield = false;
+        this.player.speedBoost = 0;
+        this.player.slowTimer = 0;
+      }
       start() { this.reset(); this.state = 'playing'; }
-      update() {}
+      update() {
+        if (this.state !== 'playing') return;
+
+        this.updatePlayer();
+        this.checkCollisions();
+        if (this.state === 'gameover') return;
+
+        this.score++;
+
+        if (this.player.speedBoost > 0) this.player.speedBoost--;
+        if (this.player.slowTimer > 0) this.player.slowTimer--;
+
+        this.frame++;
+        const spawnRate = Math.max(20, 40 - Math.floor(this.score / 100));
+        if (this.frame % spawnRate === 0) this.spawnObstacle();
+
+        this.updateObstacles();
+        this.updatePowerups();
+      }
+
+      updatePlayer() {
+        const k = this.controls;
+        const speed = this.player.speedBoost > 0
+          ? this.player.speed * 2
+          : this.player.speed;
+
+        if (keys[k.left]) this.player.normalX -= speed;
+        if (keys[k.right]) this.player.normalX += speed;
+        this.player.normalX = Math.max(0.02, Math.min(0.98, this.player.normalX));
+      }
+
+      spawnObstacle() {
+        const lane = Math.floor(Math.random() * 3);
+        const laneWidth = 1 / 3;
+        const baseSpeed = this.player.slowTimer > 0 ? 0.006 : 0.012;
+        this.obstacles.push({
+          normalX: lane * laneWidth + laneWidth / 2,
+          normalY: -1,
+          w: 0.08, h: 0.14,
+          speed: Math.min(baseSpeed + Math.floor(this.score / 200) * 0.002, 0.03),
+          color: Math.random() > 0.5 ? '#e64a4a' : '#e68a2e'
+        });
+      }
+
+      updateObstacles() {
+        for (let i = this.obstacles.length - 1; i >= 0; i--) {
+          const o = this.obstacles[i];
+          o.normalY += o.speed;
+          if (o.normalY > 1.2) {
+            this.obstacles.splice(i, 1);
+          }
+        }
+      }
+
+      checkCollisions() {
+        const p = this.player;
+        for (const o of this.obstacles) {
+          if (this.rectsOverlap(p, o)) {
+            if (p.shield) {
+              p.shield = false;
+              this.obstacles.splice(this.obstacles.indexOf(o), 1);
+            } else {
+              this.state = 'gameover';
+              this.onGameOver(this);
+              return;
+            }
+          }
+        }
+      }
+
+      rectsOverlap(a, b) {
+        return a.normalX - a.w / 2 < b.normalX + b.w / 2 &&
+               a.normalX + a.w / 2 > b.normalX - b.w / 2 &&
+               a.normalY - a.h / 2 < b.normalY + b.h / 2 &&
+               a.normalY + a.h / 2 > b.normalY - b.h / 2;
+      }
+
+      updatePowerups() {}
+      spawnPowerup() {}
       draw() {
         const ctx = this.ctx;
         const c = this.canvas;
