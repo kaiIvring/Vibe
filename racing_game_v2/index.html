@@ -116,20 +116,50 @@
       }
     };
 
-    function showDualResult() {}
+    function showDualResult() {
+      gameMode = 'result';
+      hideAllScreens();
+      document.getElementById('result').classList.add('show');
+
+      const s1 = Math.floor(instances[0].score / 60);
+      const s2 = Math.floor(instances[1].score / 60);
+
+      document.getElementById('resultScores').innerHTML =
+        `P1: ${s1}s &nbsp;&nbsp;|&nbsp;&nbsp; P2: ${s2}s`;
+
+      let verdict;
+      if (s1 > s2) {
+        verdict = '\u{1F3C6} PLAYER 1 WINS!';
+      } else if (s2 > s1) {
+        verdict = '\u{1F3C6} PLAYER 2 WINS!';
+      } else {
+        verdict = '\u{1F91D} DRAW!';
+      }
+      document.getElementById('resultVerdict').textContent = verdict;
+    }
 
     function onGameOver(instance) {
-      if (gameMode === 'single') {
+      if (gameMode === 'dual') {
+        instances.forEach(i => {
+          const s = Math.floor(i.score / 60);
+          if (Leaderboard.isHighScore(s)) {
+            const name = prompt(`Player ${instances.indexOf(i) + 1}: New High Score! Enter name:`, 'AAA');
+            if (name) {
+              Leaderboard.save({ name: name.slice(0, 3).toUpperCase(), score: s, date: new Date().toLocaleDateString() });
+            }
+          }
+        });
+
+        if (instances.every(i => i.isOver)) {
+          showDualResult();
+        }
+      } else if (gameMode === 'single') {
         const score = Math.floor(instance.score / 60);
         if (Leaderboard.isHighScore(score)) {
           const name = prompt('New High Score! Enter your name (3 letters):', 'AAA');
           if (name) {
             Leaderboard.save({ name: name.slice(0, 3).toUpperCase(), score, date: new Date().toLocaleDateString() });
           }
-        }
-      } else if (gameMode === 'dual') {
-        if (instances.every(i => i.isOver)) {
-          showDualResult();
         }
       }
     }
