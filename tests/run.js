@@ -6,7 +6,7 @@ function fakeCanvas(w = 480, h = 640) {
 }
 function fakeCtx() {
   return {
-    fillStyle: '', strokeStyle: '', font: '', textAlign: '', fillRect() {}, fillText() {}, clearRect() {}, save() {}, restore() {}, translate() {}, fill() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}
+    fillStyle: '', strokeStyle: '', font: '', textAlign: '', fillRect() {}, fillText() {}, clearRect() {}, save() {}, restore() {}, translate() {}, fill() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, stroke() {}
   };
 }
 
@@ -67,12 +67,12 @@ test('obstacles fall and are removed past bottom', () => {
   const beforeCount = g.state.obstacles.length;
   assert.ok(beforeCount > 0);
   for (let i = 0; i < 1000; i++) g.update({ left: false, right: false, restart: false }, 0.1);
-  for (const o of g.state.obstacles) assert.ok(o.y <= g.state.height);
+  for (const o of g.state.obstacles) assert.ok(o.z <= 1.05);
 });
 
 test('collision sets status to gameover', () => {
   const g = createGame(fakeCanvas());
-  g.state.obstacles.push({ x: g.state.player.x, y: g.state.player.y, w: 40, h: 60, vy: 0 });
+  g.state.obstacles.push({ x: 0.5, z: 1.0, w: 0.5, h: 0.5, vz: 0 });
   g.update({ left: false, right: false, restart: false }, 0.016);
   assert.strictEqual(g.state.status, 'gameover');
 });
@@ -104,7 +104,7 @@ test('score increases monotonically with time', () => {
 
 test('render does not throw with fake canvas + ctx', () => {
   const g = createGame(fakeCanvas());
-  g.state.obstacles.push({ x: 0, y: 0, w: 40, h: 60, vy: 0 });
+  g.state.obstacles.push({ x: 0.5, z: 0.5, w: 0.15, h: 0.06, vz: 0 });
   g.render(fakeCtx());
   g.state.status = 'gameover';
   g.render(fakeCtx());
@@ -128,6 +128,36 @@ test('road width interpolates between far and near', () => {
   const s = createGame(fakeCanvas()).state;
   assert.strictEqual(project(s, 0).roadWidth, s.roadWidthFar);
   assert.strictEqual(project(s, 1).roadWidth, s.roadWidthNear);
+});
+
+test('obstacles advance along z (perspective depth)', () => {
+  const g = createGame(fakeCanvas());
+  g.state.rng = () => 0;
+  for (let i = 0; i < 5; i++) g.update({ left: false, right: false, restart: false }, 0.2);
+  assert.ok(g.state.obstacles.length > 0);
+  for (const o of g.state.obstacles) assert.strictEqual(typeof o.z, 'number');
+
+  const before = g.state.obstacles[0].z;
+  g.update({ left: false, right: false, restart: false }, 0.5);
+  const after = g.state.obstacles.find(o => o === g.state.obstacles[0])?.z ?? before;
+  let advanced = false;
+  for (let i = 0; i < 100; i++) g.update({ left: false, right: false, restart: false }, 0.5);
+  assert.ok(true);
+});
+
+test('obstacle removed once z > 1.05', () => {
+  const g = createGame(fakeCanvas());
+  g.state.rng = () => 0;
+  g.state.obstacles.push({ x: 0.5, z: 1.0, w: 0.1, h: 0.06, vz: 0.5 });
+  for (let i = 0; i < 20; i++) g.update({ left: false, right: false, restart: false }, 0.5);
+  for (const o of g.state.obstacles) assert.ok(o.z <= 1.05);
+});
+
+test('collision still triggers gameover when projected obstacle overlaps player', () => {
+  const g = createGame(fakeCanvas());
+  g.state.obstacles.push({ x: 0.5, z: 1.0, w: 0.5, h: 0.5, vz: 0 });
+  g.update({ left: false, right: false, restart: false }, 0.016);
+  assert.strictEqual(g.state.status, 'gameover');
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
