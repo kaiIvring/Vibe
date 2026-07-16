@@ -70,5 +70,37 @@ test('obstacles fall and are removed past bottom', () => {
   for (const o of g.state.obstacles) assert.ok(o.y <= g.state.height);
 });
 
+test('collision sets status to gameover', () => {
+  const g = createGame(fakeCanvas());
+  g.state.obstacles.push({ x: g.state.player.x, y: g.state.player.y, w: 40, h: 60, vy: 0 });
+  g.update({ left: false, right: false, restart: false }, 0.016);
+  assert.strictEqual(g.state.status, 'gameover');
+});
+
+test('restart resets state when in gameover', () => {
+  const g = createGame(fakeCanvas());
+  for (let i = 0; i < 50; i++) g.update({ left: false, right: false, restart: false }, 0.016);
+  g.state.status = 'gameover';
+  g.state.obstacles.push({ x: 0, y: 0, w: 40, h: 60, vy: 0 });
+  g.state.score = 999;
+  g.update({ left: false, right: false, restart: true }, 0.016);
+  assert.strictEqual(g.state.status, 'playing');
+  assert.strictEqual(g.state.score, 0);
+  assert.strictEqual(g.state.obstacles.length, 0);
+  assert.strictEqual(g.state.player.x, (480 - 40) / 2);
+});
+
+test('score increases monotonically with time', () => {
+  const g = createGame(fakeCanvas());
+  g.state.rng = () => 1;
+  let last = -1;
+  for (let i = 0; i < 100; i++) {
+    g.update({ left: false, right: false, restart: false }, 0.1);
+    assert.ok(g.state.score >= last);
+    last = g.state.score;
+  }
+  assert.ok(g.state.score >= 9);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

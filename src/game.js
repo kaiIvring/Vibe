@@ -36,6 +36,12 @@ function createGame(canvas) {
       }
       for (const o of this.state.obstacles) o.y += o.vy * dt;
       this.state.obstacles = this.state.obstacles.filter(o => o.y <= this.state.height);
+      for (const o of this.state.obstacles) {
+        if (p.x < o.x + o.w && p.x + p.w > o.x && p.y < o.y + o.h && p.y + p.h > o.y) {
+          this.state.status = 'gameover';
+          break;
+        }
+      }
     },
     render() {},
     reset() {
