@@ -377,13 +377,11 @@
       spawnPowerup() {
         const types = ['speed', 'shield', 'slow'];
         const type = types[Math.floor(Math.random() * 3)];
-        const baseSpeed = this.player.slowTimer > 0 ? 0.006 : 0.012;
-        const powerSpeed = Math.min(baseSpeed + Math.floor(this.score / 200) * 0.002, 0.03);
         this.powerups.push({
           normalX: 0.1 + Math.random() * 0.8,
           normalY: -1,
           w: 0.06, h: 0.06,
-          speed: powerSpeed,
+          speed: 0.004,
           type: type
         });
       }
@@ -428,20 +426,23 @@
         const c = this.canvas;
         const ctx = this.ctx;
         const proj = projectTo3D(c, p.normalX, p.normalY);
-        const size = 10 * proj.scale;
+        const size = 16 * proj.scale;
         const x = proj.x;
         const y = proj.y;
 
         if (y > c.height || y < 0) return;
 
-        const pulse = Math.sin(this.frame * 0.1) * 0.3 + 0.7;
+        const pulse = Math.sin(this.frame * 0.08) * 0.3 + 0.7;
 
         ctx.save();
         ctx.translate(x, y);
 
+        // Glow ring
+        const glow = ctx.createRadialGradient(0, 0, size * 0.3, 0, 0, size * 1.4);
         switch (p.type) {
           case 'speed':
-            ctx.fillStyle = `rgba(76, 255, 76, ${pulse})`;
+            ctx.fillStyle = `rgba(76, 255, 76, ${0.7 + pulse * 0.3})`;
+            // Diamond
             ctx.beginPath();
             ctx.moveTo(0, -size);
             ctx.lineTo(size, 0);
@@ -449,18 +450,21 @@
             ctx.lineTo(-size, 0);
             ctx.closePath();
             ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = Math.max(1, 2 * proj.scale);
+            ctx.stroke();
             break;
           case 'shield':
-            ctx.fillStyle = `rgba(76, 150, 255, ${pulse})`;
+            ctx.fillStyle = `rgba(76, 150, 255, ${0.7 + pulse * 0.3})`;
             ctx.beginPath();
             ctx.arc(0, 0, size, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = Math.max(1, 2 * proj.scale);
             ctx.stroke();
             break;
           case 'slow':
-            ctx.fillStyle = `rgba(200, 100, 255, ${pulse})`;
+            ctx.fillStyle = `rgba(200, 100, 255, ${0.7 + pulse * 0.3})`;
             for (let i = 0; i < 5; i++) {
               const a = (i * 4 * Math.PI) / 5 - Math.PI / 2;
               const px = Math.cos(a) * size;
@@ -469,6 +473,9 @@
             }
             ctx.closePath();
             ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = Math.max(1, 2 * proj.scale);
+            ctx.stroke();
             break;
         }
 
@@ -548,6 +555,26 @@
 
         // Draw player
         this.drawCar(this.ctx, this.player.normalX, this.player.normalY, this.player.w, this.player.h, '#4488ff', 1);
+
+        // Active powerup HUD
+        if (this.state === 'playing') {
+          const effects = [];
+          if (this.player.shield) effects.push({ text: '🛡 SHIELD', color: '#7cf' });
+          if (this.player.speedBoost > 0) effects.push({ text: `⚡ SPEED ${Math.ceil(this.player.speedBoost / 60)}s`, color: '#7f7' });
+          if (this.player.slowTimer > 0) effects.push({ text: `❄ SLOW ${Math.ceil(this.player.slowTimer / 60)}s`, color: '#c8f' });
+          if (effects.length > 0) {
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 14px monospace';
+            effects.forEach((eff, i) => {
+              const t = eff.text;
+              const tw = ctx.measureText(t).width + 14;
+              ctx.fillStyle = 'rgba(0,0,0,0.6)';
+              ctx.fillRect(8, 8 + i * 26, tw, 22);
+              ctx.fillStyle = eff.color;
+              ctx.fillText(t, 14, 26 + i * 26);
+            });
+          }
+        }
 
         // Game over overlay
         if (this.state === 'gameover') {
