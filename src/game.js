@@ -25,7 +25,7 @@ function createGame(canvas) {
     const proj = project(state, o.z);
     const centerX = state.width / 2 + (o.x - 0.5) * proj.roadWidth;
     const rectW = o.w * proj.roadWidth;
-    const rectH = o.h * (state.height - state.horizon);
+    const rectH = o.h * (state.height - state.horizon) * proj.scale;
     return { x: centerX - rectW / 2, y: proj.screenY - rectH, w: rectW, h: rectH };
   }
 
