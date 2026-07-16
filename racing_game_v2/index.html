@@ -283,6 +283,7 @@
         this.player.shield = false;
         this.player.speedBoost = 0;
         this.player.slowTimer = 0;
+        for (const k in keys) delete keys[k];
       }
       start() { this.reset(); this.state = 'playing'; }
       update() {
