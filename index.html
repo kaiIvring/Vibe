@@ -17,7 +17,7 @@
   var keyMap = { ArrowLeft: 'left', ArrowRight: 'right' };
   window.addEventListener('keydown', function (e) {
     if (keyMap[e.code]) { input[keyMap[e.code]] = true; e.preventDefault(); }
-    if (e.code === 'KeyR') { input.restart = true; }
+    if (e.code === 'KeyR' && game.state.status === 'gameover') { input.restart = true; }
   });
   window.addEventListener('keyup', function (e) {
     if (keyMap[e.code]) { input[keyMap[e.code]] = false; e.preventDefault(); }
