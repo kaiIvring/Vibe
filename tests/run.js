@@ -34,5 +34,23 @@ test('initial state is playing with player at bottom and score 0', () => {
   assert.strictEqual(g.state.obstacles.length, 0);
 });
 
+test('holding right moves player right; stops at right edge', () => {
+  const g = createGame(fakeCanvas());
+  g.state.player.x = 200;
+  for (let i = 0; i < 10; i++) g.update({ left: false, right: true, restart: false }, 0.1);
+  assert.ok(g.state.player.x > 200);
+  for (let i = 0; i < 200; i++) g.update({ left: false, right: true, restart: false }, 0.1);
+  assert.strictEqual(g.state.player.x, 480 - 40);
+});
+
+test('holding left moves player left; stops at left edge', () => {
+  const g = createGame(fakeCanvas());
+  g.state.player.x = 100;
+  for (let i = 0; i < 10; i++) g.update({ left: true, right: false, restart: false }, 0.1);
+  assert.ok(g.state.player.x < 100);
+  for (let i = 0; i < 200; i++) g.update({ left: true, right: false, restart: false }, 0.1);
+  assert.strictEqual(g.state.player.x, 0);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
