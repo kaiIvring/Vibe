@@ -134,6 +134,7 @@ function createGame(canvas) {
       }
       for (const pu of this.state.powerups) {
         const r = powerupScreenRect(pu);
+        ctx.save();
         ctx.fillStyle = '#0f0';
         ctx.beginPath();
         ctx.arc(r.x + r.w / 2, r.y + r.h / 2, r.w / 2, 0, Math.PI * 2);
@@ -143,6 +144,7 @@ function createGame(canvas) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('M', r.x + r.w / 2, r.y + r.h / 2);
+        ctx.restore();
       }
       const pRect = playerScreenRect();
       ctx.fillStyle = '#3b8';
