@@ -4,6 +4,10 @@ function createGame(canvas) {
   const state = {
     width: W,
     height: H,
+    horizon: 80,
+    roadWidthNear: 380,
+    roadWidthFar: 90,
+    perspectiveNear: 0.4,
     player: { x: (W - 40) / 2, y: H - 80, w: 40, h: 60, vx: 0 },
     obstacles: [],
     score: 0,
@@ -84,5 +88,13 @@ function createGame(canvas) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { createGame };
+  module.exports = { createGame, project };
+}
+
+function project(state, z) {
+  const clamped = Math.max(0, Math.min(1, z));
+  const screenY = state.horizon + clamped * (state.height - state.horizon);
+  const scale = state.perspectiveNear + clamped * (1 - state.perspectiveNear);
+  const roadWidth = state.roadWidthFar + clamped * (state.roadWidthNear - state.roadWidthFar);
+  return { screenY, scale, roadWidth };
 }

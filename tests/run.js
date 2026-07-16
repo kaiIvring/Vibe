@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { createGame } = require('../src/game.js');
+const { createGame, project } = require('../src/game.js');
 
 function fakeCanvas(w = 480, h = 640) {
   return { width: w, height: h };
@@ -108,6 +108,26 @@ test('render does not throw with fake canvas + ctx', () => {
   g.render(fakeCtx());
   g.state.status = 'gameover';
   g.render(fakeCtx());
+});
+
+test('project at z=1 sits near bottom at full scale', () => {
+  const s = createGame(fakeCanvas()).state;
+  const p = project(s, 1);
+  assert.ok(p.screenY > s.height / 2);
+  assert.strictEqual(p.scale, 1);
+});
+
+test('project at z=0 sits at horizon at perspectiveNear scale', () => {
+  const s = createGame(fakeCanvas()).state;
+  const p = project(s, 0);
+  assert.strictEqual(p.screenY, s.horizon);
+  assert.strictEqual(p.scale, s.perspectiveNear);
+});
+
+test('road width interpolates between far and near', () => {
+  const s = createGame(fakeCanvas()).state;
+  assert.strictEqual(project(s, 0).roadWidth, s.roadWidthFar);
+  assert.strictEqual(project(s, 1).roadWidth, s.roadWidthNear);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
