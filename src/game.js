@@ -13,7 +13,10 @@ function createGame(canvas) {
     score: 0,
     elapsed: 0,
     status: 'playing',
-    rng: Math.random
+    rng: Math.random,
+    powerups: [],
+    nextPickupScore: 5,
+    powerupTimer: 0
   };
 
   function playerScreenRect() {
@@ -31,6 +34,14 @@ function createGame(canvas) {
 
   function rectsOverlap(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function powerupScreenRect(pu) {
+    const proj = project(state, pu.z);
+    const centerX = state.width / 2 + (pu.x - 0.5) * proj.roadWidth;
+    const rectW = pu.w * proj.roadWidth;
+    const rectH = pu.h * (state.height - state.horizon) * proj.scale;
+    return { x: centerX - rectW / 2, y: proj.screenY - rectH, w: rectW, h: rectH };
   }
 
   return {
@@ -63,6 +74,26 @@ function createGame(canvas) {
           this.state.status = 'gameover';
           break;
         }
+      }
+      if (this.state.powerups.length === 0 && this.state.score >= this.state.nextPickupScore) {
+        const rng = this.state.rng;
+        this.state.powerups.push({ x: rng(), z: 0, w: 0.12, h: 0.06, vz: 0.3, type: 'missile' });
+      }
+      for (const pu of this.state.powerups) pu.z += pu.vz * dt;
+      this.state.powerups = this.state.powerups.filter(pu => pu.z <= 1.05);
+      for (const pu of this.state.powerups) {
+        const pur = powerupScreenRect(pu);
+        if (rectsOverlap(pr, pur)) {
+          this.state.obstacles.length = 0;
+          this.state.powerupTimer = 1.5;
+          this.state.nextPickupScore += 5;
+          this.state.powerups.length = 0;
+          break;
+        }
+      }
+      if (this.state.powerupTimer > 0) {
+        this.state.powerupTimer -= dt;
+        if (this.state.powerupTimer < 0) this.state.powerupTimer = 0;
       }
     },
     render(ctx) {
@@ -101,6 +132,18 @@ function createGame(canvas) {
         ctx.fillStyle = '#e33';
         ctx.fillRect(r.x, r.y, r.w, r.h);
       }
+      for (const pu of this.state.powerups) {
+        const r = powerupScreenRect(pu);
+        ctx.fillStyle = '#0f0';
+        ctx.beginPath();
+        ctx.arc(r.x + r.w / 2, r.y + r.h / 2, r.w / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = (r.h * 0.6) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('M', r.x + r.w / 2, r.y + r.h / 2);
+      }
       const pRect = playerScreenRect();
       ctx.fillStyle = '#3b8';
       ctx.fillRect(pRect.x, pRect.y, pRect.w, pRect.h);
@@ -108,6 +151,12 @@ function createGame(canvas) {
       ctx.font = '20px sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText('Score: ' + this.state.score, W - 10, 24);
+      if (this.state.powerupTimer > 0) {
+        ctx.fillStyle = '#0f0';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('MISSILE!', W - 10, 44);
+      }
       if (this.state.status === 'gameover') {
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.fillRect(0, 0, W, H);
@@ -128,6 +177,9 @@ function createGame(canvas) {
       this.state.elapsed = 0;
       this.state.score = 0;
       this.state.status = 'playing';
+      this.state.powerups.length = 0;
+      this.state.nextPickupScore = 5;
+      this.state.powerupTimer = 0;
     },
     state
   };

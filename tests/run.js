@@ -6,7 +6,7 @@ function fakeCanvas(w = 480, h = 640) {
 }
 function fakeCtx() {
   return {
-    fillStyle: '', strokeStyle: '', font: '', textAlign: '', fillRect() {}, fillText() {}, clearRect() {}, save() {}, restore() {}, translate() {}, fill() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, stroke() {}
+    fillStyle: '', strokeStyle: '', font: '', textAlign: '', textBaseline: '', fillRect() {}, fillText() {}, clearRect() {}, save() {}, restore() {}, translate() {}, fill() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, stroke() {}, arc() {}
   };
 }
 
@@ -158,6 +158,44 @@ test('collision still triggers gameover when projected obstacle overlaps player'
   g.state.obstacles.push({ x: 0.5, z: 1.0, w: 0.5, h: 0.5, vz: 0 });
   g.update({ left: false, right: false, restart: false }, 0.016);
   assert.strictEqual(g.state.status, 'gameover');
+});
+
+test('powerup nextPickupScore starts at 5', () => {
+  const g = createGame(fakeCanvas());
+  assert.strictEqual(g.state.nextPickupScore, 5);
+  assert.strictEqual(g.state.powerups.length, 0);
+});
+
+test('powerup appears after scoring >= nextPickupScore', () => {
+  const g = createGame(fakeCanvas());
+  g.state.rng = () => 0;
+  g.state.elapsed = 5;
+  g.state.score = 5;
+  g.update({ left: false, right: false, restart: false }, 0.016);
+  assert.strictEqual(g.state.powerups.length, 1);
+});
+
+test('collecting powerup clears obstacles and activates timer', () => {
+  const g = createGame(fakeCanvas());
+  g.state.rng = () => 0;
+  g.state.obstacles.push({ x: 0.5, z: 0.5, w: 0.15, h: 0.06, vz: 0.4 });
+  g.state.score = 5;
+  g.state.elapsed = 5;
+  g.state.nextPickupScore = 5;
+  g.update({ left: false, right: false, restart: false }, 0.016);
+  g.state.powerups.push({ x: 0.5, z: 1.0, w: 0.15, h: 0.06, vz: 0 });
+  g.update({ left: false, right: false, restart: false }, 0.016);
+  assert.strictEqual(g.state.obstacles.length, 0);
+  assert.ok(g.state.powerupTimer > 0);
+});
+
+test('powerup timer counts down', () => {
+  const g = createGame(fakeCanvas());
+  g.state.powerupTimer = 1.0;
+  g.update({ left: false, right: false, restart: false }, 0.5);
+  assert.ok(g.state.powerupTimer > 0);
+  g.update({ left: false, right: false, restart: false }, 0.6);
+  assert.strictEqual(g.state.powerupTimer, 0);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
