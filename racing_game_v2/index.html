@@ -24,9 +24,9 @@
     canvas { display: none; }
     #gameCanvas.show { display: block; width: 100%; height: 100%; }
 
-    #dualContainer { display: none; width: 100%; height: 100%; }
+    #dualContainer { display: none; position: fixed; inset: 0; }
     #dualContainer.show { display: flex; }
-    #dualContainer canvas { display: block; flex: 1; height: 100%; }
+    #dualContainer canvas { display: block; width: 50%; height: 100%; }
 
     #result {
       position: fixed; inset: 0; display: none; flex-direction: column;
@@ -143,16 +143,6 @@
 
     function onGameOver(instance) {
       if (gameMode === 'dual') {
-        instances.forEach(i => {
-          const s = Math.floor(i.score / 60);
-          if (Leaderboard.isHighScore(s)) {
-            const name = prompt(`Player ${instances.indexOf(i) + 1}: New High Score! Enter name:`, 'AAA');
-            if (name) {
-              Leaderboard.save({ name: name.slice(0, 3).toUpperCase(), score: s, date: new Date().toLocaleDateString() });
-            }
-          }
-        });
-
         if (instances.every(i => i.isOver)) {
           showDualResult();
         }
@@ -337,18 +327,19 @@
         this.player.normalX = Math.max(0.02, Math.min(0.98, this.player.normalX));
       }
 
-      spawnObstacle() {
-        const lane = Math.floor(Math.random() * 3);
-        const laneWidth = 1 / 3;
-        const baseSpeed = this.player.slowTimer > 0 ? 0.006 : 0.012;
-        this.obstacles.push({
-          normalX: lane * laneWidth + laneWidth / 2,
-          normalY: -1,
-          w: 0.08, h: 0.14,
-          speed: Math.min(baseSpeed + Math.floor(this.score / 200) * 0.002, 0.03),
-          color: Math.random() > 0.5 ? '#e64a4a' : '#e68a2e'
-        });
-      }
+    spawnObstacle() {
+      const LANE_COUNT = 4;
+      const lane = Math.floor(Math.random() * LANE_COUNT);
+      const laneWidth = 1 / LANE_COUNT;
+      const baseSpeed = this.player.slowTimer > 0 ? 0.006 : 0.012;
+      this.obstacles.push({
+        normalX: lane * laneWidth + 0.02 + Math.random() * (laneWidth - 0.04),
+        normalY: -1,
+        w: 0.11, h: 0.14,
+        speed: Math.min(baseSpeed + Math.floor(this.score / 200) * 0.002, 0.03),
+        color: Math.random() > 0.5 ? '#e64a4a' : '#e68a2e'
+      });
+    }
 
       updateObstacles() {
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
@@ -509,19 +500,20 @@
         ctx.fill();
 
         // Lane markings — draw segments from depth
+        const LANES = 4;
         const segments = 20;
+        ctx.strokeStyle = '#fff';
         for (let i = 0; i < segments; i++) {
           const y1 = -1 + (i / segments) * 2;
           const y2 = -1 + ((i + 0.5) / segments) * 2;
-          const p1 = projectTo3D(c, 1 / 3, y1);
-          const p2 = projectTo3D(c, 1 / 3, y2);
-          const p3 = projectTo3D(c, 2 / 3, y1);
-          const p4 = projectTo3D(c, 2 / 3, y2);
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = Math.max(1, 3 * p1.scale);
           ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
-          ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
+          for (let lane = 1; lane < LANES; lane++) {
+            const lx = lane / LANES;
+            const p1 = projectTo3D(c, lx, y1);
+            const p2 = projectTo3D(c, lx, y2);
+            ctx.lineWidth = Math.max(1, 3 * p1.scale);
+            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+          }
           ctx.stroke();
         }
 
@@ -635,8 +627,9 @@
     }
 
     function resizeCanvas(canvas) {
-      canvas.width = canvas.clientWidth || window.innerWidth;
-      canvas.height = canvas.clientHeight || window.innerHeight;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width || window.innerWidth;
+      canvas.height = rect.height || window.innerHeight;
     }
 
     window.addEventListener('resize', () => {
@@ -657,6 +650,9 @@
           actions[menuIndex]();
           e.preventDefault();
         }
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
       }
       if ((e.key === 'r' || e.key === 'R') && gameMode === 'single') {
         const inst = instances[0];
