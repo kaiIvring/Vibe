@@ -258,5 +258,56 @@ test('dual mode: restart resets both players', () => {
   assert.strictEqual(g.state.score, 0);
 });
 
+const { createLeaderboard } = require('../src/leaderboard.js');
+
+test('leaderboard: empty initially', () => {
+  const mem = { data: {} };
+  const store = { getItem: k => mem.data[k] || null, setItem: (k, v) => { mem.data[k] = v; } };
+  const lb = createLeaderboard(store);
+  assert.strictEqual(lb.getScores().length, 0);
+});
+
+test('leaderboard: addScore stores entry', () => {
+  const mem = { data: {} };
+  const store = { getItem: k => mem.data[k] || null, setItem: (k, v) => { mem.data[k] = v; } };
+  const lb = createLeaderboard(store);
+  lb.addScore('Alice', 100);
+  assert.strictEqual(lb.getScores().length, 1);
+  assert.strictEqual(lb.getScores()[0].name, 'Alice');
+  assert.strictEqual(lb.getScores()[0].score, 100);
+});
+
+test('leaderboard: sorted descending', () => {
+  const mem = { data: {} };
+  const store = { getItem: k => mem.data[k] || null, setItem: (k, v) => { mem.data[k] = v; } };
+  const lb = createLeaderboard(store);
+  lb.addScore('Alice', 100);
+  lb.addScore('Bob', 200);
+  lb.addScore('Charlie', 50);
+  const scores = lb.getScores();
+  assert.strictEqual(scores[0].name, 'Bob');
+  assert.strictEqual(scores[1].name, 'Alice');
+  assert.strictEqual(scores[2].name, 'Charlie');
+});
+
+test('leaderboard: clear empties', () => {
+  const mem = { data: {} };
+  const store = { getItem: k => mem.data[k] || null, setItem: (k, v) => { mem.data[k] = v; } };
+  const lb = createLeaderboard(store);
+  lb.addScore('Alice', 100);
+  lb.clearScores();
+  assert.strictEqual(lb.getScores().length, 0);
+});
+
+test('leaderboard: persists across instances', () => {
+  const mem = { data: {} };
+  const store = { getItem: k => mem.data[k] || null, setItem: (k, v) => { mem.data[k] = v; } };
+  const lb1 = createLeaderboard(store);
+  lb1.addScore('Alice', 100);
+  const lb2 = createLeaderboard(store);
+  assert.strictEqual(lb2.getScores().length, 1);
+  assert.strictEqual(lb2.getScores()[0].score, 100);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

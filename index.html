@@ -8,15 +8,21 @@
 <body>
 <canvas id="game" width="480" height="640"></canvas>
 <script src="src/game.js"></script>
+<script src="src/leaderboard.js"></script>
 <script>
 (function () {
   var canvas = document.getElementById('game');
   var ctx = canvas.getContext('2d');
   var game, input, running = false;
+  var lb = createLeaderboard(localStorage);
+  var screen = 'menu';
+  var addedScore = false;
 
   function startGame(dual) {
     game = createGame(canvas, { dual: dual });
     input = { left: false, right: false, p2Left: false, p2Right: false, restart: false };
+    addedScore = false;
+    screen = 'playing';
     if (!running) {
       running = true;
       last = performance.now();
@@ -25,6 +31,7 @@
   }
 
   function showMenu() {
+    screen = 'menu';
     running = false;
     ctx.clearRect(0, 0, 480, 640);
     ctx.fillStyle = '#1a1a2e';
@@ -32,22 +39,55 @@
     ctx.fillStyle = '#fff';
     ctx.font = '36px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Racing Game', 240, 200);
+    ctx.fillText('Racing Game', 240, 180);
     ctx.font = '20px sans-serif';
-    ctx.fillText('Press 1 for 1 Player', 240, 300);
-    ctx.fillText('Press 2 for 2 Players', 240, 340);
+    ctx.fillText('Press 1 for 1 Player', 240, 280);
+    ctx.fillText('Press 2 for 2 Players', 240, 320);
+    ctx.fillText('Press L for Leaderboard', 240, 380);
     ctx.font = '14px sans-serif';
-    ctx.fillText('P1: Arrow Keys | P2: W/S', 240, 420);
+    ctx.fillText('P1: Arrow Keys | P2: W/S', 240, 430);
+  }
+
+  function showLeaderboard() {
+    screen = 'leaderboard';
+    running = false;
+    ctx.clearRect(0, 0, 480, 640);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, 480, 640);
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Leaderboard', 240, 40);
+    ctx.font = '16px sans-serif';
+    var scores = lb.getScores();
+    if (scores.length === 0) {
+      ctx.fillText('No scores yet!', 240, 200);
+    } else {
+      for (var i = 0; i < Math.min(scores.length, 10); i++) {
+        ctx.fillText((i + 1) + '. ' + scores[i].name + ' - ' + scores[i].score, 240, 80 + i * 30);
+      }
+    }
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Press M for Menu', 240, 460);
   }
 
   var keyMapP1 = { ArrowLeft: 'left', ArrowRight: 'right' };
   var keyMapP2 = { KeyW: 'p2Left', KeyS: 'p2Right' };
   window.addEventListener('keydown', function (e) {
-    if (!running && e.code === 'Digit1') { startGame(false); return; }
-    if (!running && e.code === 'Digit2') { startGame(true); return; }
+    if (screen === 'menu') {
+      if (e.code === 'Digit1') { startGame(false); return; }
+      if (e.code === 'Digit2') { startGame(true); return; }
+      if (e.code === 'KeyL') { showLeaderboard(); return; }
+      return;
+    }
+    if (screen === 'leaderboard') {
+      if (e.code === 'KeyM') { showMenu(); return; }
+      return;
+    }
     if (keyMapP1[e.code]) { if (input) input[keyMapP1[e.code]] = true; e.preventDefault(); }
     if (keyMapP2[e.code]) { if (input) input[keyMapP2[e.code]] = true; e.preventDefault(); }
     if (e.code === 'KeyR' && game && game.state.status === 'gameover') { input.restart = true; }
+    if (e.code === 'KeyM' && game && game.state.status === 'gameover') { showMenu(); }
   });
   window.addEventListener('keyup', function (e) {
     if (keyMapP1[e.code]) { if (input) input[keyMapP1[e.code]] = false; e.preventDefault(); }
@@ -62,6 +102,11 @@
     game.update(input, dt);
     input.restart = false;
     game.render(ctx);
+    if (game.state.status === 'gameover' && !addedScore) {
+      addedScore = true;
+      var name = game.state.isDual ? 'Player ' + (game.state.loser === 0 ? 2 : 1) : 'Player 1';
+      lb.addScore(name, game.state.score);
+    }
     requestAnimationFrame(frame);
   }
 
