@@ -12,18 +12,51 @@
 (function () {
   var canvas = document.getElementById('game');
   var ctx = canvas.getContext('2d');
-  var game = createGame(canvas);
-  var input = { left: false, right: false, restart: false };
-  var keyMap = { ArrowLeft: 'left', ArrowRight: 'right' };
+  var game, input, running = false;
+
+  function startGame(dual) {
+    game = createGame(canvas, { dual: dual });
+    input = { left: false, right: false, p2Left: false, p2Right: false, restart: false };
+    if (!running) {
+      running = true;
+      last = performance.now();
+      requestAnimationFrame(frame);
+    }
+  }
+
+  function showMenu() {
+    running = false;
+    ctx.clearRect(0, 0, 480, 640);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, 480, 640);
+    ctx.fillStyle = '#fff';
+    ctx.font = '36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Racing Game', 240, 200);
+    ctx.font = '20px sans-serif';
+    ctx.fillText('Press 1 for 1 Player', 240, 300);
+    ctx.fillText('Press 2 for 2 Players', 240, 340);
+    ctx.font = '14px sans-serif';
+    ctx.fillText('P1: Arrow Keys | P2: W/S', 240, 420);
+  }
+
+  var keyMapP1 = { ArrowLeft: 'left', ArrowRight: 'right' };
+  var keyMapP2 = { KeyW: 'p2Left', KeyS: 'p2Right' };
   window.addEventListener('keydown', function (e) {
-    if (keyMap[e.code]) { input[keyMap[e.code]] = true; e.preventDefault(); }
-    if (e.code === 'KeyR' && game.state.status === 'gameover') { input.restart = true; }
+    if (!running && e.code === 'Digit1') { startGame(false); return; }
+    if (!running && e.code === 'Digit2') { startGame(true); return; }
+    if (keyMapP1[e.code]) { if (input) input[keyMapP1[e.code]] = true; e.preventDefault(); }
+    if (keyMapP2[e.code]) { if (input) input[keyMapP2[e.code]] = true; e.preventDefault(); }
+    if (e.code === 'KeyR' && game && game.state.status === 'gameover') { input.restart = true; }
   });
   window.addEventListener('keyup', function (e) {
-    if (keyMap[e.code]) { input[keyMap[e.code]] = false; e.preventDefault(); }
+    if (keyMapP1[e.code]) { if (input) input[keyMapP1[e.code]] = false; e.preventDefault(); }
+    if (keyMapP2[e.code]) { if (input) input[keyMapP2[e.code]] = false; e.preventDefault(); }
   });
-  var last = performance.now();
+
+  var last;
   function frame(now) {
+    if (!running) return;
     var dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     game.update(input, dt);
@@ -31,7 +64,8 @@
     game.render(ctx);
     requestAnimationFrame(frame);
   }
-  requestAnimationFrame(frame);
+
+  showMenu();
 })();
 </script>
 </body>

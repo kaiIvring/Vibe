@@ -1,6 +1,12 @@
-function createGame(canvas) {
+function createGame(canvas, opts) {
   const W = canvas.width;
   const H = canvas.height;
+  const dual = opts && opts.dual;
+  const p0 = { x: (W - 40) / 2, y: H - 80, w: 40, h: 60, vx: 0, alive: true };
+  const players = [p0];
+  if (dual) {
+    players.push({ x: (W - 40) * 0.66, y: H - 80, w: 40, h: 60, vx: 0, alive: true });
+  }
   const state = {
     width: W,
     height: H,
@@ -8,7 +14,10 @@ function createGame(canvas) {
     roadWidthNear: 380,
     roadWidthFar: 90,
     perspectiveNear: 0.4,
-    player: { x: (W - 40) / 2, y: H - 80, w: 40, h: 60, vx: 0 },
+    player: p0,
+    players: players,
+    isDual: !!dual,
+    loser: -1,
     obstacles: [],
     score: 0,
     elapsed: 0,
@@ -19,8 +28,7 @@ function createGame(canvas) {
     powerupTimer: 0
   };
 
-  function playerScreenRect() {
-    const p = state.player;
+  function playerScreenRect(p) {
     return { x: p.x, y: state.height - p.h, w: p.w, h: p.h };
   }
 
@@ -50,30 +58,44 @@ function createGame(canvas) {
         if (input.restart) { this.reset(); }
         return;
       }
-      const p = this.state.player;
-      const speed = 260;
-      let vx = 0;
-      if (input.left) vx -= speed;
-      if (input.right) vx += speed;
-      p.x += vx * dt;
-      if (p.x < 0) p.x = 0;
-      if (p.x + p.w > this.state.width) p.x = this.state.width - p.w;
-      p.vx = vx;
       this.state.elapsed += dt;
       this.state.score = Math.floor(this.state.elapsed);
       const rng = this.state.rng;
+      const speed = 260;
+      for (let i = 0; i < this.state.players.length; i++) {
+        const p = this.state.players[i];
+        let vx = 0;
+        if (i === 0) {
+          if (input.left) vx -= speed;
+          if (input.right) vx += speed;
+        } else {
+          if (input.p2Left) vx -= speed;
+          if (input.p2Right) vx += speed;
+        }
+        p.x += vx * dt;
+        if (p.x < 0) p.x = 0;
+        if (p.x + p.w > this.state.width) p.x = this.state.width - p.w;
+        p.vx = vx;
+      }
       if (this.state.obstacles.length < 6 && rng() < 0.6 * dt) {
         this.state.obstacles.push({ x: rng(), z: 0, w: 0.15, h: 0.06, vz: 0.4 });
       }
       for (const o of this.state.obstacles) o.z += o.vz * dt;
       this.state.obstacles = this.state.obstacles.filter(o => o.z <= 1.05);
-      const pr = playerScreenRect();
-      for (const o of this.state.obstacles) {
-        const or = obstacleScreenRect(o);
-        if (rectsOverlap(pr, or)) {
-          this.state.status = 'gameover';
-          break;
+      for (let i = 0; i < this.state.players.length; i++) {
+        const p = this.state.players[i];
+        if (!p.alive) continue;
+        const pr = playerScreenRect(p);
+        for (const o of this.state.obstacles) {
+          const or = obstacleScreenRect(o);
+          if (rectsOverlap(pr, or)) {
+            p.alive = false;
+            this.state.loser = i;
+            this.state.status = 'gameover';
+            break;
+          }
         }
+        if (this.state.status === 'gameover') break;
       }
       if (this.state.powerups.length === 0 && this.state.score >= this.state.nextPickupScore) {
         const rng = this.state.rng;
@@ -81,9 +103,10 @@ function createGame(canvas) {
       }
       for (const pu of this.state.powerups) pu.z += pu.vz * dt;
       this.state.powerups = this.state.powerups.filter(pu => pu.z <= 1.05);
+      const firstPR = playerScreenRect(this.state.players[0]);
       for (const pu of this.state.powerups) {
         const pur = powerupScreenRect(pu);
-        if (rectsOverlap(pr, pur)) {
+        if (rectsOverlap(firstPR, pur)) {
           this.state.obstacles.length = 0;
           this.state.powerupTimer = 1.5;
           this.state.nextPickupScore += 5;
@@ -146,9 +169,14 @@ function createGame(canvas) {
         ctx.fillText('M', r.x + r.w / 2, r.y + r.h / 2);
         ctx.restore();
       }
-      const pRect = playerScreenRect();
-      ctx.fillStyle = '#3b8';
-      ctx.fillRect(pRect.x, pRect.y, pRect.w, pRect.h);
+      const colors = ['#3b8', '#f80'];
+      for (let i = 0; i < this.state.players.length; i++) {
+        const p = this.state.players[i];
+        if (!p.alive) continue;
+        const pr = playerScreenRect(p);
+        ctx.fillStyle = colors[i];
+        ctx.fillRect(pr.x, pr.y, pr.w, pr.h);
+      }
       ctx.fillStyle = '#fff';
       ctx.font = '20px sans-serif';
       ctx.textAlign = 'right';
@@ -165,17 +193,32 @@ function createGame(canvas) {
         ctx.fillStyle = '#fff';
         ctx.font = '36px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Game Over', cx, H / 2 - 10);
+        if (this.state.isDual && this.state.loser >= 0) {
+          const winner = this.state.loser === 0 ? 'Player 2' : 'Player 1';
+          ctx.fillText('Player ' + (this.state.loser + 1) + ' Crashed!', cx, H / 2 - 30);
+          ctx.font = '24px sans-serif';
+          ctx.fillText(winner + ' Wins!', cx, H / 2 + 5);
+        } else {
+          ctx.fillText('Game Over', cx, H / 2 - 10);
+        }
         ctx.font = '18px sans-serif';
-        ctx.fillText('Press R to restart', cx, H / 2 + 20);
-        ctx.fillText('Score: ' + this.state.score, cx, H / 2 + 50);
+        ctx.fillText('Press R to restart', cx, H / 2 + 35);
+        ctx.fillText('Score: ' + this.state.score, cx, H / 2 + 65);
       }
     },
     reset() {
       this.state.obstacles.length = 0;
-      this.state.player.x = (this.state.width - 40) / 2;
-      this.state.player.y = this.state.height - 80;
-      this.state.player.vx = 0;
+      this.state.players[0].x = (this.state.width - 40) / 2;
+      this.state.players[0].y = this.state.height - 80;
+      this.state.players[0].vx = 0;
+      this.state.players[0].alive = true;
+      if (this.state.players.length > 1) {
+        this.state.players[1].x = (this.state.width - 40) * 0.66;
+        this.state.players[1].y = this.state.height - 80;
+        this.state.players[1].vx = 0;
+        this.state.players[1].alive = true;
+      }
+      this.state.loser = -1;
       this.state.elapsed = 0;
       this.state.score = 0;
       this.state.status = 'playing';

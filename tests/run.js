@@ -198,5 +198,65 @@ test('powerup timer counts down', () => {
   assert.strictEqual(g.state.powerupTimer, 0);
 });
 
+test('dual mode creates 2 players', () => {
+  const g = createGame(fakeCanvas(), { dual: true });
+  assert.strictEqual(g.state.players.length, 2);
+  assert.strictEqual(g.state.isDual, true);
+});
+
+test('dual mode P2 moves with p2Left/p2Right', () => {
+  const g = createGame(fakeCanvas(), { dual: true });
+  const p2 = g.state.players[1];
+  for (let i = 0; i < 10; i++) g.update({ left: false, right: false, p2Left: false, p2Right: true, restart: false }, 0.1);
+  assert.ok(p2.x > 0);
+  const xBefore = p2.x;
+  for (let i = 0; i < 10; i++) g.update({ left: false, right: false, p2Left: true, p2Right: false, restart: false }, 0.1);
+  assert.ok(p2.x < xBefore);
+});
+
+test('dual mode: P1 crash sets loser=0', () => {
+  const g = createGame(fakeCanvas(), { dual: true });
+  g.state.obstacles.push({ x: 0.5, z: 1.0, w: 0.5, h: 0.5, vz: 0 });
+  g.update({ left: false, right: false, p2Left: false, p2Right: false, restart: false }, 0.016);
+  assert.strictEqual(g.state.status, 'gameover');
+  assert.strictEqual(g.state.loser, 0);
+  assert.strictEqual(g.state.players[0].alive, false);
+});
+
+test('dual mode: P2 crash sets loser=1', () => {
+  const g = createGame(fakeCanvas(), { dual: true });
+  g.state.players[0].x = 10;
+  g.state.players[1].x = 350;
+  g.state.obstacles.push({ x: 0.9, z: 1.0, w: 0.3, h: 0.5, vz: 0 });
+  g.update({ left: false, right: false, p2Left: false, p2Right: false, restart: false }, 0.016);
+  assert.strictEqual(g.state.status, 'gameover');
+  assert.strictEqual(g.state.loser, 1);
+  assert.strictEqual(g.state.players[1].alive, false);
+});
+
+test('dual mode: P1 crash leaves P2 alive', () => {
+  const g = createGame(fakeCanvas(), { dual: true });
+  g.state.players[1].x = 350;
+  g.state.players[0].x = 10;
+  g.state.obstacles.push({ x: 0.1, z: 1.0, w: 0.3, h: 0.5, vz: 0 });
+  g.update({ left: false, right: false, p2Left: false, p2Right: false, restart: false }, 0.016);
+  assert.strictEqual(g.state.status, 'gameover');
+  assert.strictEqual(g.state.loser, 0);
+  assert.strictEqual(g.state.players[1].alive, true);
+});
+
+test('dual mode: restart resets both players', () => {
+  const g = createGame(fakeCanvas(), { dual: true });
+  g.state.obstacles.push({ x: 0.5, z: 1.0, w: 0.5, h: 0.5, vz: 0 });
+  g.update({ left: false, right: false, p2Left: false, p2Right: false, restart: false }, 0.016);
+  assert.strictEqual(g.state.status, 'gameover');
+  g.update({ left: false, right: false, p2Left: false, p2Right: false, restart: true }, 0.016);
+  assert.strictEqual(g.state.status, 'playing');
+  assert.strictEqual(g.state.players[0].alive, true);
+  assert.strictEqual(g.state.players[1].alive, true);
+  assert.strictEqual(g.state.loser, -1);
+  assert.strictEqual(g.state.score, 0);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
