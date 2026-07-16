@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Racing Game</title>
+<style>html,body{margin:0;background:#111;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#fff}canvas{background:#222;display:block}</style>
+</head>
+<body>
+<canvas id="game" width="480" height="640"></canvas>
+<script src="src/game.js"></script>
+<script>
+(function () {
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var game = createGame(canvas);
+  var input = { left: false, right: false, restart: false };
+  var keyMap = { ArrowLeft: 'left', ArrowRight: 'right' };
+  window.addEventListener('keydown', function (e) {
+    if (keyMap[e.code]) { input[keyMap[e.code]] = true; e.preventDefault(); }
+    if (e.code === 'KeyR') { input.restart = true; }
+  });
+  window.addEventListener('keyup', function (e) {
+    if (keyMap[e.code]) { input[keyMap[e.code]] = false; e.preventDefault(); }
+  });
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    game.update(input, dt);
+    input.restart = false;
+    game.render(ctx);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

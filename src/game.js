@@ -43,7 +43,33 @@ function createGame(canvas) {
         }
       }
     },
-    render() {},
+    render(ctx) {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, 0, this.state.width, this.state.height);
+      ctx.fillStyle = '#fff';
+      for (let i = 1; i < 5; i++) {
+        ctx.fillRect(i * (this.state.width / 5) - 2, 0, 4, this.state.height);
+      }
+      ctx.fillStyle = '#3b8';
+      ctx.fillRect(this.state.player.x, this.state.player.y, this.state.player.w, this.state.player.h);
+      ctx.fillStyle = '#e33';
+      for (const o of this.state.obstacles) ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.fillStyle = '#fff';
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('Score: ' + this.state.score, this.state.width - 10, 24);
+      if (this.state.status === 'gameover') {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(0, 0, this.state.width, this.state.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '36px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game Over', this.state.width / 2, this.state.height / 2 - 10);
+        ctx.font = '18px sans-serif';
+        ctx.fillText('Press R to restart', this.state.width / 2, this.state.height / 2 + 20);
+        ctx.fillText('Score: ' + this.state.score, this.state.width / 2, this.state.height / 2 + 50);
+      }
+    },
     reset() {
       this.state.obstacles.length = 0;
       this.state.player.x = (this.state.width - 40) / 2;

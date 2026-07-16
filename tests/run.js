@@ -102,5 +102,13 @@ test('score increases monotonically with time', () => {
   assert.ok(g.state.score >= 9);
 });
 
+test('render does not throw with fake canvas + ctx', () => {
+  const g = createGame(fakeCanvas());
+  g.state.obstacles.push({ x: 0, y: 0, w: 40, h: 60, vy: 0 });
+  g.render(fakeCtx());
+  g.state.status = 'gameover';
+  g.render(fakeCtx());
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
