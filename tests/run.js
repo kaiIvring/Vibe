@@ -52,5 +52,23 @@ test('holding left moves player left; stops at left edge', () => {
   assert.strictEqual(g.state.player.x, 0);
 });
 
+test('obstacles spawn over time (deterministic RNG)', () => {
+  const g = createGame(fakeCanvas());
+  let seq = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 0.2];
+  g.state.rng = () => seq.shift();
+  for (let i = 0; i < 12; i++) g.update({ left: false, right: false, restart: false }, 0.5);
+  assert.ok(g.state.obstacles.length > 0);
+});
+
+test('obstacles fall and are removed past bottom', () => {
+  const g = createGame(fakeCanvas());
+  g.state.rng = () => 0;
+  for (let i = 0; i < 5; i++) g.update({ left: false, right: false, restart: false }, 0.2);
+  const beforeCount = g.state.obstacles.length;
+  assert.ok(beforeCount > 0);
+  for (let i = 0; i < 1000; i++) g.update({ left: false, right: false, restart: false }, 0.1);
+  for (const o of g.state.obstacles) assert.ok(o.y <= g.state.height);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
