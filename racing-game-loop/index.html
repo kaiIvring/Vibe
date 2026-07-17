@@ -51,6 +51,7 @@
 
   function showNamePrompt() {
     screen = 'naming';
+    running = false;
     playerName = '';
     renderNamePrompt();
   }
@@ -130,6 +131,10 @@
       return;
     }
     if (e.code === 'Escape') { showMenu(); return; }
+    if (game && game.state.status === 'gameover' && !running) {
+      if (e.code === 'KeyR') { game.reset(); running = true; last = performance.now(); requestAnimationFrame(frame); }
+      return;
+    }
     if (keyMapP1[e.code]) { if (input) input[keyMapP1[e.code]] = true; e.preventDefault(); }
     if (keyMapP2[e.code]) { if (input) input[keyMapP2[e.code]] = true; e.preventDefault(); }
     if (e.code === 'KeyR' && game && game.state.status === 'gameover') { input.restart = true; }
@@ -150,9 +155,7 @@
     if (game.state.status === 'gameover' && !addedScore) {
       addedScore = true;
       if (game.state.isDual) {
-        var winner = game.state.loser === 0 ? 'Player 2' : 'Player 1';
-        lb.addScore(winner, game.state.score);
-        showLeaderboard();
+        running = false;
       } else {
         showNamePrompt();
       }
