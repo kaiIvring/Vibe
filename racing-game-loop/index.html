@@ -17,6 +17,7 @@
   var lb = createLeaderboard(localStorage);
   var screen = 'menu';
   var addedScore = false;
+  var playerName = '';
 
   function startGame(dual) {
     game = createGame(canvas, { dual: dual });
@@ -45,7 +46,32 @@
     ctx.fillText('Press 2 for 2 Players', 240, 320);
     ctx.fillText('Press L for Leaderboard', 240, 380);
     ctx.font = '14px sans-serif';
-    ctx.fillText('P1: Arrow Keys | P2: W/S', 240, 430);
+    ctx.fillText('P1: Arrow Keys | P2: A/D | ESC: Menu', 240, 430);
+  }
+
+  function showNamePrompt() {
+    screen = 'naming';
+    playerName = '';
+    renderNamePrompt();
+  }
+
+  function renderNamePrompt() {
+    ctx.clearRect(0, 0, 480, 640);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, 480, 640);
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Score: ' + game.state.score, 240, 180);
+    ctx.font = '18px sans-serif';
+    ctx.fillText('Enter your name:', 240, 240);
+    ctx.font = '22px sans-serif';
+    ctx.fillStyle = '#0f0';
+    ctx.fillText(playerName + '|', 240, 290);
+    ctx.fillStyle = '#888';
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Press Enter to save | Backspace to delete', 240, 340);
+    ctx.fillText('Press ESC to skip', 240, 370);
   }
 
   function showLeaderboard() {
@@ -72,8 +98,27 @@
   }
 
   var keyMapP1 = { ArrowLeft: 'left', ArrowRight: 'right' };
-  var keyMapP2 = { KeyW: 'p2Left', KeyS: 'p2Right' };
+  var keyMapP2 = { KeyA: 'p2Left', KeyD: 'p2Right' };
   window.addEventListener('keydown', function (e) {
+    if (screen === 'naming') {
+      if (e.code === 'Enter' && playerName.length > 0) {
+        lb.addScore(playerName, game.state.score);
+        showLeaderboard();
+        return;
+      }
+      if (e.code === 'Backspace') {
+        playerName = playerName.slice(0, -1);
+        renderNamePrompt();
+        e.preventDefault();
+        return;
+      }
+      if (e.code === 'Escape') { showMenu(); return; }
+      if (e.key.length === 1 && playerName.length < 15) {
+        playerName += e.key;
+        renderNamePrompt();
+      }
+      return;
+    }
     if (screen === 'menu') {
       if (e.code === 'Digit1') { startGame(false); return; }
       if (e.code === 'Digit2') { startGame(true); return; }
@@ -84,10 +129,10 @@
       if (e.code === 'KeyM') { showMenu(); return; }
       return;
     }
+    if (e.code === 'Escape') { showMenu(); return; }
     if (keyMapP1[e.code]) { if (input) input[keyMapP1[e.code]] = true; e.preventDefault(); }
     if (keyMapP2[e.code]) { if (input) input[keyMapP2[e.code]] = true; e.preventDefault(); }
     if (e.code === 'KeyR' && game && game.state.status === 'gameover') { input.restart = true; }
-    if (e.code === 'KeyM' && game && game.state.status === 'gameover') { showMenu(); }
   });
   window.addEventListener('keyup', function (e) {
     if (keyMapP1[e.code]) { if (input) input[keyMapP1[e.code]] = false; e.preventDefault(); }
@@ -104,8 +149,13 @@
     game.render(ctx);
     if (game.state.status === 'gameover' && !addedScore) {
       addedScore = true;
-      var name = game.state.isDual ? 'Player ' + (game.state.loser === 0 ? 2 : 1) : 'Player 1';
-      lb.addScore(name, game.state.score);
+      if (game.state.isDual) {
+        var winner = game.state.loser === 0 ? 'Player 2' : 'Player 1';
+        lb.addScore(winner, game.state.score);
+        showLeaderboard();
+      } else {
+        showNamePrompt();
+      }
     }
     requestAnimationFrame(frame);
   }

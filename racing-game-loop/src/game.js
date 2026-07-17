@@ -103,10 +103,16 @@ function createGame(canvas, opts) {
       }
       for (const pu of this.state.powerups) pu.z += pu.vz * dt;
       this.state.powerups = this.state.powerups.filter(pu => pu.z <= 1.05);
-      const firstPR = playerScreenRect(this.state.players[0]);
-      for (const pu of this.state.powerups) {
-        const pur = powerupScreenRect(pu);
-        if (rectsOverlap(firstPR, pur)) {
+      for (let i = 0; i < this.state.players.length; i++) {
+        const p = this.state.players[i];
+        if (!p.alive) continue;
+        const pur = playerScreenRect(p);
+        let collected = false;
+        for (const pu of this.state.powerups) {
+          const puRect = powerupScreenRect(pu);
+          if (rectsOverlap(pur, puRect)) { collected = true; break; }
+        }
+        if (collected) {
           this.state.obstacles.length = 0;
           this.state.powerupTimer = 1.5;
           this.state.nextPickupScore += 5;

@@ -245,6 +245,21 @@ test('dual mode: P1 crash leaves P2 alive', () => {
   assert.strictEqual(g.state.players[1].alive, true);
 });
 
+test('dual mode: P2 can collect powerup', () => {
+  const g = createGame(fakeCanvas(), { dual: true });
+  g.state.players[0].x = 10;
+  g.state.players[1].x = 350;
+  g.state.rng = () => 0;
+  g.state.powerups.push({ x: 0.9, z: 1.0, w: 0.12, h: 0.06, vz: 0, type: 'missile' });
+  g.state.obstacles.push({ x: 0.5, z: 0.5, w: 0.15, h: 0.06, vz: 0 });
+  g.state.score = 5;
+  g.state.elapsed = 5;
+  g.state.nextPickupScore = 5;
+  g.update({ left: false, right: false, p2Left: false, p2Right: false, restart: false }, 0.016);
+  assert.strictEqual(g.state.obstacles.length, 0);
+  assert.ok(g.state.powerupTimer > 0);
+});
+
 test('dual mode: restart resets both players', () => {
   const g = createGame(fakeCanvas(), { dual: true });
   g.state.obstacles.push({ x: 0.5, z: 1.0, w: 0.5, h: 0.5, vz: 0 });
